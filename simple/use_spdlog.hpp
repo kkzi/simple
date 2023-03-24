@@ -39,3 +39,9 @@ static inline void init_logger(std::string_view path, std::string_view level = "
 #define LOGW LOG_WARN
 #define LOGE LOG_ERROR
 #define LOGF LOG_FATAL
+
+#define log_debug LOG_DEBUG
+#define log_info  LOG_INFO
+#define log_warn  LOG_WARN
+#define log_error LOG_ERROR
+#define log_fatal LOG_FATAL

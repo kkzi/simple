@@ -455,21 +455,6 @@ namespace sutil
         return std::stold(std::string{ sv });
     }
 
-    // inline float as_float(std::string_view sv)
-    //{
-    //    return as_number<float>(sv);
-    //}
-
-    // inline double as_double(std::string_view sv)
-    //{
-    //    return as_number<double>(sv);
-    //}
-
-    // inline long double as_longdouble(std::string_view sv)
-    //{
-    //    return as_number<long double>(sv);
-    //}
-
     void trim_left(std::string& input)
     {
         input.erase(0, input.find_first_not_of(detail::space));
