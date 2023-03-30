@@ -7,14 +7,17 @@
 #include <atldlgs.h>
 #include <atlctrlw.h>
 #include <atltheme.h>
-
-CAppModule app_;
+#include <concepts>
 
 namespace WTL
 {
+    template<class T> concept CanCreate = requires(T obj) { { obj.Create(NULL) } -> std::convertible_to<HWND>; };
+    template<class T> concept CanCreateEx = requires(T obj) { { obj.CreateEx(NULL) }-> std::convertible_to<HWND>; };
+    template<CanCreate T> HWND Create(T& t) { return t.Create(NULL); }
+    template<CanCreateEx T> HWND Create(T& t) { return t.CreateEx(NULL); }
 
     template<class Win>
-    int Run(HINSTANCE hInstance, LPTSTR /*lpstrCmdLine*/ = NULL, int nCmdShow = SW_SHOWDEFAULT)
+    static int Run(HINSTANCE hInstance, LPTSTR /*lpstrCmdLine*/ = NULL, int nCmdShow = SW_SHOWDEFAULT)
     {
         HRESULT res = ::CoInitialize(NULL);
         ATLASSERT(SUCCEEDED(res));
@@ -22,14 +25,14 @@ namespace WTL
         ::DefWindowProc(NULL, 0, 0, 0L);
         WTL::AtlInitCommonControls(ICC_COOL_CLASSES | ICC_BAR_CLASSES);
 
-        res = app_.Init(NULL, hInstance);
+        res = _Module.Init(NULL, hInstance);
         ATLASSERT(SUCCEEDED(res));
 
         CMessageLoop loop;
-        app_.AddMessageLoop(&loop);
+        _Module.AddMessageLoop(&loop);
 
         Win win;
-        if (win.CreateEx() == NULL)
+        if (Create(win) == NULL)
         {
             ATLTRACE(_T("Main window creation failed!\n"));
             return 0;
@@ -37,11 +40,18 @@ namespace WTL
         win.ShowWindow(nCmdShow);
 
         int ret = loop.Run();
-        app_.RemoveMessageLoop();
-        app_.Term();
+        _Module.RemoveMessageLoop();
+        _Module.Term();
 
         ::CoUninitialize();
         return ret;
+    }
+
+    static CMessageLoop* Loop()
+    {
+        auto loop = _Module.GetMessageLoop();
+        ATLASSERT(loop != NULL);
+        return loop;
     }
 }
 
@@ -53,3 +63,10 @@ static int wtl_run(HINSTANCE hInstance, LPTSTR lpstrCmdLine = NULL, int nCmdShow
     return wtl::Run<Win>(hInstance, lpstrCmdLine, nCmdShow);
 }
 
+
+#define WTL_MAIN(__MAIN_WINDOW__) \
+WTL::CAppModule _Module; \
+int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE, LPTSTR lpstrCmdLine, int nCmdShow)\
+{\
+    return wtl_run<__MAIN_WINDOW__>(hInstance, lpstrCmdLine, nCmdShow);\
+}
