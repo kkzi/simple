@@ -57,16 +57,9 @@ namespace WTL
 
 namespace wtl = WTL;
 
-template<class Win>
-static int wtl_run(HINSTANCE hInstance, LPTSTR lpstrCmdLine = NULL, int nCmdShow = SW_SHOWDEFAULT)
-{
-    return wtl::Run<Win>(hInstance, lpstrCmdLine, nCmdShow);
-}
-
-
 #define WTL_MAIN(__MAIN_WINDOW__) \
 WTL::CAppModule _Module; \
 int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE, LPTSTR lpstrCmdLine, int nCmdShow)\
 {\
-    return wtl_run<__MAIN_WINDOW__>(hInstance, lpstrCmdLine, nCmdShow);\
+    return wtl::Run<__MAIN_WINDOW__>(hInstance, lpstrCmdLine, nCmdShow);\
 }
