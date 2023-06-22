@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace sutil::detail
+namespace str::detail
 {
     constexpr const char* const space = "\x20\x09\x0A\x0B\x0C\x0D";
 
@@ -207,11 +207,10 @@ namespace sutil::detail
         return result;
     }
 
-}  // namespace sutil::detail
+}
 
-namespace sutil
+namespace str
 {
-
     inline void to_upper(std::string& s)
     {
         std::transform(std::begin(s), std::end(s), std::begin(s), ::toupper);
@@ -496,4 +495,4 @@ namespace sutil
         return copy;
     }
 
-}  // namespace sutil
+}
