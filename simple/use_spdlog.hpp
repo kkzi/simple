@@ -17,8 +17,9 @@ static inline void init_logger(std::string_view path, std::string_view level = "
     auto logger = std::make_shared<spdlog::logger>("default", sinks.begin(), sinks.end());
 
     //logger->set_pattern("[%^%L%$][%Y-%m-%d %H:%M:%S.%e] %v. [%s:%#, %t]");
+    logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e][%^%l%$] %v. [%s:%#, %t]");
     // glog/absl log patern
-    logger->set_pattern("%L%m%d %H:%M:%S.%f %7t %s:%#] %v");
+    //logger->set_pattern("%L%m%d %H:%M:%S.%f %7t %s:%#] %v");
 
     logger->set_level(spdlog::level::from_str(level.data()));
     logger->flush_on(spdlog::level::warn);

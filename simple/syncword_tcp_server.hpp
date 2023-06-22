@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tcp_server.h"
+#include "tcp_server.hpp"
 #include <boost/asio/buffers_iterator.hpp>
 #include <boost/asio/read_until.hpp>
 #include <boost/asio/streambuf.hpp>
@@ -18,7 +18,7 @@ struct syncword_frame_condition
         {
             return { begin, false };
         }
-        auto ptr_begin = (uint8_t *)(begin.operator->());
+        auto ptr_begin = (uint8_t*)(begin.operator->());
         for (auto i = 0; i < syncword.size(); ++i)
         {
             if (syncword.at(i) != *(ptr_begin + i))
@@ -53,7 +53,7 @@ public:
     using tcp_session::tcp_session;
 
 public:
-    void set_syncword(const std::vector<uint8_t> &syncword)
+    void set_syncword(const std::vector<uint8_t>& syncword)
     {
         syncword_ = syncword;
     }
@@ -68,11 +68,11 @@ protected:
     {
         auto self(shared_from_this());
 
-        static auto match_syncword = [](auto &&begin, auto &&end) {
+        static auto match_syncword = [](auto&& begin, auto&& end) {
             return std::pair(begin + 10, true);
         };
 
-        boost::asio::async_read_until(socket_, buf_, syncword_frame_condition(syncword_, frame_len_), [this, self](auto &&ec, auto &&length) {
+        boost::asio::async_read_until(socket_, buf_, syncword_frame_condition(syncword_, frame_len_), [this, self](auto&& ec, auto&& length) {
             if (!ec)
             {
                 if (length == 0)
@@ -80,7 +80,7 @@ protected:
                     monitor_->trigger(monitor_->on_disconnect, self);
                     return;
                 }
-                monitor_->trigger(monitor_->on_recv, self, std::string_view((char *)buf_.data().data(), length));
+                monitor_->trigger(monitor_->on_recv, self, std::string_view((char*)buf_.data().data(), length));
                 buf_.consume(length);
                 do_read();
             }
@@ -88,7 +88,7 @@ protected:
             {
                 monitor_->trigger(monitor_->on_disconnect, self);
             }
-        });
+            });
     }
 
 private:
