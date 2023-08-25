@@ -1,8 +1,8 @@
 #pragma once
 
 #include <imgui.h>
-#include <imgui_impl_dx12.h>
-#include <imgui_impl_win32.h>
+#include "imgui_impl_dx12.h"
+#include "imgui_impl_win32.h"
 
 #include <d3d12.h>
 #include <dxgi1_4.h>
@@ -10,14 +10,15 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 
 #ifdef _DEBUG
-    #define DX12_ENABLE_DEBUG_LAYER
+#define DX12_ENABLE_DEBUG_LAYER
 #endif
 
 #ifdef DX12_ENABLE_DEBUG_LAYER
-    #include <dxgidebug.h>
-    #pragma comment(lib, "dxguid.lib")
+#include <dxgidebug.h>
+#pragma comment(lib, "dxguid.lib")
 #endif
 
 #pragma comment(lib, "dxguid.lib")
@@ -49,9 +50,17 @@ namespace ImGuiDx12::detail
 
     struct RunOptions
     {
-        std::wstring Title{ L"Untitled" };
+        HICON Icon{ 0 };
+#ifdef UNICODE
+        std::wstring Title
+#else
+        std::string Title
+#endif
+        { TEXT("Untitled") };
+
         int Width{ 960 };
         int Height{ 640 };
+        int CmdShow{ SW_SHOWDEFAULT };
         ImGuiTheme Theme{ ImGuiTheme::DefaultLight };
         std::optional<ImVec4> BackgroundColor;
         // std::optional<ImGuiFont> Font{ "C:/Windows/Fonts/segoeui.ttf" };
@@ -60,34 +69,35 @@ namespace ImGuiDx12::detail
 
     struct FrameContext
     {
-        ID3D12CommandAllocator *CommandAllocator;
+        ID3D12CommandAllocator* CommandAllocator;
         UINT64 FenceValue;
     };
 
     // Data
-    static int const NUM_FRAMES_IN_FLIGHT = 3;
-    static FrameContext g_frameContext[NUM_FRAMES_IN_FLIGHT] = {};
-    static UINT g_frameIndex = 0;
+    static int const NUM_FRAMES_IN_FLIGHT{ 3 };
+    static FrameContext g_frameContext[NUM_FRAMES_IN_FLIGHT]{};
+    static UINT g_frameIndex{ 0 };
 
-    static int const NUM_BACK_BUFFERS = 3;
-    static ID3D12Device *g_pd3dDevice = NULL;
-    static ID3D12DescriptorHeap *g_pd3dRtvDescHeap = NULL;
-    static ID3D12DescriptorHeap *g_pd3dSrvDescHeap = NULL;
-    static ID3D12CommandQueue *g_pd3dCommandQueue = NULL;
-    static ID3D12GraphicsCommandList *g_pd3dCommandList = NULL;
-    static ID3D12Fence *g_fence = NULL;
-    static HANDLE g_fenceEvent = NULL;
-    static UINT64 g_fenceLastSignaledValue = 0;
-    static IDXGISwapChain3 *g_pSwapChain = NULL;
-    static HANDLE g_hSwapChainWaitableObject = NULL;
-    static ID3D12Resource *g_mainRenderTargetResource[NUM_BACK_BUFFERS] = {};
-    static D3D12_CPU_DESCRIPTOR_HANDLE g_mainRenderTargetDescriptor[NUM_BACK_BUFFERS] = {};
+    static int const NUM_BACK_BUFFERS{ 3 };
+    static ID3D12Device* g_pd3dDevice{ NULL };
+    static ID3D12DescriptorHeap* g_pd3dRtvDescHeap{ NULL };
+    static ID3D12DescriptorHeap* g_pd3dSrvDescHeap{ NULL };
+    static ID3D12CommandQueue* g_pd3dCommandQueue{ NULL };
+    static ID3D12GraphicsCommandList* g_pd3dCommandList{ NULL };
+    static ID3D12Fence* g_fence{ NULL };
+    static HANDLE g_fenceEvent{ NULL };
+    static UINT64 g_fenceLastSignaledValue{ 0 };
+    static IDXGISwapChain3* g_pSwapChain{ NULL };
+    static HANDLE g_hSwapChainWaitableObject{ NULL };
+    static ID3D12Resource* g_mainRenderTargetResource[NUM_BACK_BUFFERS]{};
+    static D3D12_CPU_DESCRIPTOR_HANDLE g_mainRenderTargetDescriptor[NUM_BACK_BUFFERS]{};
+    static std::unordered_map<uint32_t, WNDPROC> g_msg2proc{};
 
     static void CreateRenderTarget()
     {
         for (UINT i = 0; i < NUM_BACK_BUFFERS; i++)
         {
-            ID3D12Resource *pBackBuffer = NULL;
+            ID3D12Resource* pBackBuffer = NULL;
             g_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pBackBuffer));
             g_pd3dDevice->CreateRenderTargetView(pBackBuffer, NULL, g_mainRenderTargetDescriptor[i]);
             g_mainRenderTargetResource[i] = pBackBuffer;
@@ -116,7 +126,7 @@ namespace ImGuiDx12::detail
 
         // [DEBUG] Enable debug interface
 #ifdef DX12_ENABLE_DEBUG_LAYER
-        ID3D12Debug *pdx12Debug = NULL;
+        ID3D12Debug* pdx12Debug = NULL;
         if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&pdx12Debug)))) pdx12Debug->EnableDebugLayer();
 #endif
 
@@ -124,18 +134,18 @@ namespace ImGuiDx12::detail
         D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
         if (D3D12CreateDevice(NULL, featureLevel, IID_PPV_ARGS(&g_pd3dDevice)) != S_OK) return false;
 
-            // [DEBUG] Setup debug interface to break on any warnings/errors
+        // [DEBUG] Setup debug interface to break on any warnings/errors
 #ifdef DX12_ENABLE_DEBUG_LAYER
         if (pdx12Debug != NULL)
         {
-            ID3D12InfoQueue *pInfoQueue = NULL;
+            ID3D12InfoQueue* pInfoQueue = NULL;
             g_pd3dDevice->QueryInterface(IID_PPV_ARGS(&pInfoQueue));
             pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
             pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
             pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
             pInfoQueue->Release();
             pdx12Debug->Release();
-        }
+    }
 #endif
 
         {
@@ -175,7 +185,7 @@ namespace ImGuiDx12::detail
             if (g_pd3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&g_frameContext[i].CommandAllocator)) != S_OK) return false;
 
         if (g_pd3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, g_frameContext[0].CommandAllocator, NULL, IID_PPV_ARGS(&g_pd3dCommandList)) !=
-                S_OK ||
+            S_OK ||
             g_pd3dCommandList->Close() != S_OK)
             return false;
 
@@ -185,8 +195,8 @@ namespace ImGuiDx12::detail
         if (g_fenceEvent == NULL) return false;
 
         {
-            IDXGIFactory4 *dxgiFactory = NULL;
-            IDXGISwapChain1 *swapChain1 = NULL;
+            IDXGIFactory4* dxgiFactory = NULL;
+            IDXGISwapChain1* swapChain1 = NULL;
             if (CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory)) != S_OK) return false;
             if (dxgiFactory->CreateSwapChainForHwnd(g_pd3dCommandQueue, hWnd, &sd, NULL, NULL, &swapChain1) != S_OK) return false;
             if (swapChain1->QueryInterface(IID_PPV_ARGS(&g_pSwapChain)) != S_OK) return false;
@@ -198,11 +208,11 @@ namespace ImGuiDx12::detail
 
         CreateRenderTarget();
         return true;
-    }
+}
 
     static void WaitForLastSubmittedFrame()
     {
-        FrameContext *frameCtx = &g_frameContext[g_frameIndex % NUM_FRAMES_IN_FLIGHT];
+        FrameContext* frameCtx = &g_frameContext[g_frameIndex % NUM_FRAMES_IN_FLIGHT];
 
         UINT64 fenceValue = frameCtx->FenceValue;
         if (fenceValue == 0) return;  // No fence was signaled
@@ -282,7 +292,7 @@ namespace ImGuiDx12::detail
         }
 
 #ifdef DX12_ENABLE_DEBUG_LAYER
-        IDXGIDebug1 *pDebug = NULL;
+        IDXGIDebug1* pDebug = NULL;
         if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pDebug))))
         {
             pDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_SUMMARY);
@@ -291,7 +301,7 @@ namespace ImGuiDx12::detail
 #endif
     }
 
-    static FrameContext *WaitForNextFrameResources()
+    static FrameContext* WaitForNextFrameResources()
     {
         UINT nextFrameIndex = g_frameIndex + 1;
         g_frameIndex = nextFrameIndex;
@@ -299,7 +309,7 @@ namespace ImGuiDx12::detail
         HANDLE waitableObjects[] = { g_hSwapChainWaitableObject, NULL };
         DWORD numWaitableObjects = 1;
 
-        FrameContext *frameCtx = &g_frameContext[nextFrameIndex % NUM_FRAMES_IN_FLIGHT];
+        FrameContext* frameCtx = &g_frameContext[nextFrameIndex % NUM_FRAMES_IN_FLIGHT];
         UINT64 fenceValue = frameCtx->FenceValue;
         if (fenceValue != 0)  // means no fence was signaled
         {
@@ -318,33 +328,17 @@ namespace ImGuiDx12::detail
     {
         if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam)) return true;
 
-        switch (msg)
+        if (g_msg2proc.contains(msg))
         {
-        case WM_SIZE:
-            if (g_pd3dDevice != NULL && wParam != SIZE_MINIMIZED)
-            {
-                WaitForLastSubmittedFrame();
-                CleanupRenderTarget();
-                HRESULT result = g_pSwapChain->ResizeBuffers(
-                    0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
-                assert(SUCCEEDED(result) && "Failed to resize swapchain.");
-                CreateRenderTarget();
-            }
-            return 0;
-        case WM_SYSCOMMAND:
-            if ((wParam & 0xfff0) == SC_KEYMENU)  // Disable ALT application menu
-                return 0;
-            break;
-        case WM_DESTROY:
-            ::PostQuitMessage(0);
-            return 0;
+            return g_msg2proc.at(msg)(hWnd, msg, wParam, lParam);
         }
+
         return ::DefWindowProcW(hWnd, msg, wParam, lParam);
     }
 
-    static std::tuple<HWND, WNDCLASSEXW> CreateAppWindow(const RunOptions &opts)
+    static std::tuple<HWND, WNDCLASSEX> CreateAppWindow(const RunOptions& opts)
     {
-        WNDCLASSEXW wc{
+        WNDCLASSEX wc{
             sizeof(wc),
             CS_CLASSDC,
             WndProc,
@@ -355,10 +349,10 @@ namespace ImGuiDx12::detail
             NULL,
             NULL,
             NULL,
-            L"APP",
-            NULL,
+            TEXT("APP"),
+            opts.Icon,
         };
-        ::RegisterClassExW(&wc);
+        ::RegisterClassEx(&wc);
 
         int ScreenWidth = GetSystemMetrics(SM_CXSCREEN);
         int ScreenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -366,29 +360,29 @@ namespace ImGuiDx12::detail
         int Top = (ScreenHeight - opts.Height) / 2;
 
         HWND hwnd =
-            ::CreateWindowW(wc.lpszClassName, opts.Title.c_str(), WS_OVERLAPPEDWINDOW, Left, Top, opts.Width, opts.Height, NULL, NULL, wc.hInstance, NULL);
+            ::CreateWindow(wc.lpszClassName, opts.Title.c_str(), WS_OVERLAPPEDWINDOW, Left, Top, opts.Width, opts.Height, NULL, NULL, wc.hInstance, NULL);
 
         // Initialize Direct3D
         if (!CreateDeviceD3D(hwnd))
         {
             CleanupDeviceD3D();
-            ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+            ::UnregisterClass(wc.lpszClassName, wc.hInstance);
             return { 0, wc };
         }
 
         // Show the window
-        ::ShowWindow(hwnd, SW_SHOWDEFAULT);
+        ::ShowWindow(hwnd, opts.CmdShow);
         ::UpdateWindow(hwnd);
 
         return { hwnd, wc };
     }
 
-    static void InitImGuiContext(HWND hwnd, const RunOptions &opts)
+    static void InitImGuiContext(HWND hwnd, const RunOptions& opts)
     {
         IMGUI_CHECKVERSION();
         ImGui_ImplWin32_EnableDpiAwareness();
         ImGui::CreateContext();
-        ImGuiIO &io = ImGui::GetIO();
+        ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
         io.IniFilename = NULL;
@@ -420,7 +414,7 @@ namespace ImGuiDx12::detail
             return;
         }
 
-        const ImWchar *range = nullptr;
+        const ImWchar* range = nullptr;
         switch (opts.Font->Range)
         {
         case ImGuiFont::Chinese:
@@ -434,7 +428,7 @@ namespace ImGuiDx12::detail
         // IM_ASSERT(font != NULL);
     }
 
-    static void InitStyle(const RunOptions &opts)
+    static void InitStyle(const RunOptions& opts)
     {
         switch (opts.Theme)
         {
@@ -448,13 +442,13 @@ namespace ImGuiDx12::detail
             break;
         }
 
-        ImGuiStyle &style = ImGui::GetStyle();
+        ImGuiStyle& style = ImGui::GetStyle();
         style.WindowBorderSize = 0.0f;
     }
 
     // Poll and handle messages (inputs, window resize, etc.)
     // See the WndProc() function below for our to dispatch events to the Win32 backend.
-    static void PollMessageInLoop(bool &done)
+    static void PollMessageInLoop(bool& done)
     {
         MSG msg;
         while (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
@@ -473,7 +467,7 @@ namespace ImGuiDx12::detail
         // Rendering
         ImGui::Render();
 
-        FrameContext *frameCtx = WaitForNextFrameResources();
+        FrameContext* frameCtx = WaitForNextFrameResources();
         UINT backBufferIdx = g_pSwapChain->GetCurrentBackBufferIndex();
         frameCtx->CommandAllocator->Reset();
 
@@ -504,7 +498,7 @@ namespace ImGuiDx12::detail
         g_pd3dCommandList->ResourceBarrier(1, &barrier);
         g_pd3dCommandList->Close();
 
-        g_pd3dCommandQueue->ExecuteCommandLists(1, (ID3D12CommandList *const *)&g_pd3dCommandList);
+        g_pd3dCommandQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&g_pd3dCommandList);
 
         g_pSwapChain->Present(1, 0);  // Present with vsync
         // g_pSwapChain->Present(0, 0); // Present without vsync
@@ -522,21 +516,55 @@ namespace ImGuiDx12::detail
         ImGui::DestroyContext();
     }
 
-    static void DestoryAppWindow(HWND hwnd, const WNDCLASSEXW &wc)
+    static void DestoryAppWindow(HWND hwnd, const WNDCLASSEX& wc)
     {
         CleanupDeviceD3D();
         ::DestroyWindow(hwnd);
-        ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+        ::UnregisterClass(wc.lpszClassName, wc.hInstance);
+    }
+
+    static void OnMessage(uint32_t msg, WNDPROC proc, bool overridded = false)
+    {
+        if (overridded || !g_msg2proc.contains(msg)) {
+            g_msg2proc[msg] = proc;
+        }
+    }
+
+    static void RegisterDefaultMsgProcs()
+    {
+        OnMessage(WM_SIZE,
+            [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) -> LRESULT {
+                if (g_pd3dDevice != NULL && wParam != SIZE_MINIMIZED)
+                {
+                    CleanupRenderTarget();
+                    HRESULT result = g_pSwapChain->ResizeBuffers(
+                        0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
+                    assert(SUCCEEDED(result) && "Failed to resize swapchain.");
+                    CreateRenderTarget();
+                }
+                return 0;
+            });
+
+        OnMessage(WM_SYSCOMMAND,
+            [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) -> LRESULT {
+                if ((wParam & 0xfff0) == SC_KEYMENU)  // Disable ALT application menu
+                    return 0;
+                return ::DefWindowProcW(hWnd, msg, wParam, lParam);
+            });
+        OnMessage(WM_DESTROY,
+            [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) -> LRESULT {
+                ::PostQuitMessage(0);
+                return 0;
+            });
     }
 
     // Main code
-    static int Run(const RunOptions &opts, std::function<void()> func)
+    static int Run(const RunOptions& opts, std::function<bool(HWND)> func)
     {
-        auto &&[hwnd, wc] = CreateAppWindow(opts);
+        RegisterDefaultMsgProcs();
+        auto&& [hwnd, wc] = CreateAppWindow(opts);
         InitImGuiContext(hwnd, opts);
         InitStyle(opts);
-
-        ;
 
         // Main loop
         bool done = false;
@@ -554,7 +582,7 @@ namespace ImGuiDx12::detail
             ImGui::SetNextWindowSize(viewport->WorkSize);
             if (ImGui::Begin("MainWindow", 0, ImGuiWindowFlags_NoDecoration))
             {
-                func();
+                done = !func(hwnd);
                 ImGui::End();
             }
 
@@ -572,6 +600,7 @@ namespace ImGuiDx12::detail
 namespace ImGuiDx12
 {
     using detail::ImGuiTheme;
+    using detail::OnMessage;
     using detail::Run;
     using detail::RunOptions;
 }  // namespace ImGuiDx12
