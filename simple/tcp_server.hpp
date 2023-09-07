@@ -2,6 +2,7 @@
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
+#include <mutex>
 #include <deque>
 #include <memory>
 #include <utility>
@@ -35,11 +36,12 @@ namespace detail
             : socket_(std::move(socket))
             , monitor_(monitor)
         {
-            data_.resize(capacity);
+            read_buffer_.resize(capacity);
         }
 
         virtual ~tcp_session()
         {
+            socket_.close();
         }
 
     public:
@@ -49,11 +51,18 @@ namespace detail
             do_read();
         }
 
-        // non thread-safe
-        void send(const std::string_view& msg)
+        void send(const std::string& msg)
         {
-            bool write_in_progress = !write_msgs_.empty();
-            write_msgs_.push_back(msg.data());
+            bool write_in_progress = false;
+            {
+                std::scoped_lock lock(mutex_);
+                if (write_msgs_.size() > 4096)
+                {
+                    write_msgs_.clear();
+                }
+                write_in_progress = !write_msgs_.empty();
+                write_msgs_.push_back(msg);
+            }
             if (!write_in_progress)
             {
                 do_write();
@@ -75,10 +84,10 @@ namespace detail
         virtual void do_read()
         {
             auto self(shared_from_this());
-            socket_.async_read_some(boost::asio::buffer(data_, data_.size()), [this, self](boost::system::error_code ec, std::size_t length) {
+            socket_.async_read_some(boost::asio::buffer(read_buffer_, read_buffer_.size()), [this, self](boost::system::error_code ec, std::size_t length) {
                 if (!ec)
                 {
-                    monitor_->trigger(monitor_->on_recv, self, std::string_view(data_.data(), length));
+                    monitor_->trigger(monitor_->on_recv, self, std::string_view(read_buffer_.data(), length));
                     do_read();
                 }
                 else
@@ -91,15 +100,20 @@ namespace detail
         virtual void do_write()
         {
             auto self(shared_from_this());
-            boost::asio::async_write(socket_, boost::asio::buffer(write_msgs_.front().data(), write_msgs_.front().length()),
+            {
+                std::scoped_lock lock(mutex_);
+                if (write_msgs_.empty())
+                {
+                    return;
+                }
+                write_buffer_ = write_msgs_.front();
+                write_msgs_.pop_front();
+            }
+            boost::asio::async_write(socket_, boost::asio::buffer(write_buffer_.data(), write_buffer_.length()),
                 [this, self](boost::system::error_code ec, std::size_t /*length*/) {
                     if (!ec)
                     {
-                        write_msgs_.pop_front();
-                        if (!write_msgs_.empty())
-                        {
-                            do_write();
-                        }
+                        do_write();
                     }
                     else
                     {
@@ -112,7 +126,9 @@ namespace detail
         tcp::socket socket_;
         std::shared_ptr<detail::monitor> monitor_{ nullptr };
 
-        std::string data_;
+        std::string read_buffer_;
+        std::string write_buffer_;
+        std::mutex mutex_;
         std::deque<std::string> write_msgs_;
     };
 
@@ -123,7 +139,7 @@ namespace detail
 
     public:
         tcp_server(boost::asio::io_context& io, const tcp::endpoint& ep)
-            : acceptor_(io, ep)
+            : acceptor_(io, ep, true)
             , monitor_(std::make_shared<detail::monitor>())
         {
         }
@@ -135,6 +151,10 @@ namespace detail
 
         tcp_server(boost::asio::io_context& io, const std::string_view& host, short port)
             : tcp_server(io, tcp::endpoint(boost::asio::ip::address::from_string(host.data()), port))
+        {
+        }
+
+        ~tcp_server()
         {
         }
 
