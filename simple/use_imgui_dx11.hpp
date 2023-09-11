@@ -300,11 +300,11 @@ namespace ImGuiDx::detail
             [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) -> LRESULT {
                 if (g_pd3dDevice != NULL && wParam != SIZE_MINIMIZED)
                 {
-                    CleanupRenderTarget();
-                    HRESULT result = g_pSwapChain->ResizeBuffers(
-                        0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
-                    assert(SUCCEEDED(result) && "Failed to resize swapchain.");
-                    CreateRenderTarget();
+                    //CleanupRenderTarget();
+                    //HRESULT result = g_pSwapChain->ResizeBuffers(
+                    //    0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_DISPLAY_ONLY);
+                    //assert(SUCCEEDED(result) && "Failed to resize swapchain.");
+                    //CreateRenderTarget();
                 }
                 return 0;
             });
@@ -336,15 +336,6 @@ namespace ImGuiDx::detail
         {
             PollMessageInLoop(done);
             if (done) break;
-
-            // Handle window resize (we don't resize directly in the WM_SIZE handler)
-            //if (g_ResizeWidth != 0 && g_ResizeHeight != 0)
-            //{
-            //    CleanupRenderTarget();
-            //    g_pSwapChain->ResizeBuffers(0, g_ResizeWidth, g_ResizeHeight, DXGI_FORMAT_UNKNOWN, 0);
-            //    g_ResizeWidth = g_ResizeHeight = 0;
-            //    CreateRenderTarget();
-            //}
 
             ImGui_ImplDX11_NewFrame();
             ImGui_ImplWin32_NewFrame();

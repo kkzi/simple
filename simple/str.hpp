@@ -495,4 +495,17 @@ namespace str
         return copy;
     }
 
+    inline std::string narrow(std::wstring_view wsv) {
+        auto ns = std::string(wsv.size(), char{});
+        for (std::size_t i = 0; i != wsv.size(); ++i)
+            ns[i] = static_cast<char>(wsv[i]);
+        return ns;
+    }
+
+    inline std::wstring wide(std::string_view sv) {
+        std::wstring ws(sv.size(), wchar_t{});
+        for (std::size_t i = 0; i != sv.size(); ++i)
+            ws[i] = static_cast<wchar_t>(sv[i]);
+        return ws;
+    }
 }
