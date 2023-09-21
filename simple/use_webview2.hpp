@@ -12,31 +12,39 @@ namespace wrl = Microsoft::WRL;
 class WebViewAgent
 {
 public:
-    WebViewAgent(HWND hwnd, std::wstring_view url)
+    using on_view_ready = std::function<void(const WebViewAgent&)>;
+
+public:
+    WebViewAgent(HWND hwnd)
         : hwnd_(hwnd)
-        , url_(url)
     {
-        CreateCoreWebView2EnvironmentWithOptions(nullptr, nullptr, nullptr, wrl::Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-            [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
-                env->CreateCoreWebView2Controller(hwnd_, wrl::Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                    [this](HRESULT result, ICoreWebView2Controller* ctrl) -> HRESULT {
-                        ctrl_ = ctrl;
-                        if (ctrl_ != nullptr)
-                        {
-                            ctrl_->get_CoreWebView2(&view_);
-                        }
-                        if (view_ != nullptr)
-                        {
-                            view_->get_Settings(&settings_);
-                            initialize();
-                        }
-                        return S_OK;
-                    }).Get());
-                return S_OK;
-            }).Get());
     }
 
 public:
+    void load_url(std::wstring_view url, on_view_ready ready = nullptr)
+    {
+        assert(!url.empty());
+        initialize([url, ready](auto&& agent) {
+            agent.view_->Navigate(url.data());
+            if (ready)
+            {
+                ready(agent);
+            }
+            });
+    }
+
+    void load_html(std::wstring_view content, on_view_ready ready = nullptr)
+    {
+        assert(!content.empty());
+        initialize([content, ready](auto&& agent) {
+            agent.view_->NavigateToString(content.data());
+            if (ready)
+            {
+                ready(agent);
+            }
+            });
+    }
+
     void update_bounds(RECT bounds = { 0,0,0,0 })
     {
         if (bounds.bottom == bounds.top && bounds.left == bounds.right)
@@ -51,13 +59,40 @@ public:
     wil::com_ptr<ICoreWebView2Settings> settings() const { return settings_; };
 
 private:
-    void initialize()
+    void initialize(on_view_ready func)
     {
-        settings_->put_IsScriptEnabled(TRUE);
-        settings_->put_AreDefaultScriptDialogsEnabled(TRUE);
-        settings_->put_IsWebMessageEnabled(TRUE);
-        update_bounds();
-        view_->Navigate(url_.data());
+        CreateCoreWebView2Environment(wrl::Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+            [this, func](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+                env->CreateCoreWebView2Controller(this->hwnd_, wrl::Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                    [this, func](HRESULT result, ICoreWebView2Controller* ctrl) -> HRESULT {
+                        this->ctrl_ = ctrl;
+                        if (ctrl != nullptr)
+                        {
+                            ctrl->get_CoreWebView2(&this->view_);
+                        }
+                        if (this->view_ != nullptr)
+                        {
+                            this->view_->get_Settings(&this->settings_);
+                            this->settings_->put_IsScriptEnabled(TRUE);
+                            this->settings_->put_AreDefaultScriptDialogsEnabled(TRUE);
+                            this->settings_->put_IsWebMessageEnabled(TRUE);
+                            this->update_bounds();
+                            if (func)
+                            {
+                                func(*this);
+                            }
+                        }
+
+                        return S_OK;
+                    }).Get());
+                return S_OK;
+            }).Get());
+
+
+        //if (!url_.empty())
+        //{
+        //    view_->Navigate(url_.data());
+        //}
 
 #if 0
         // <NavigationEvents>
@@ -118,4 +153,5 @@ private:
     wil::com_ptr<ICoreWebView2> view_{ nullptr };
     wil::com_ptr<ICoreWebView2Controller> ctrl_{ nullptr };
     wil::com_ptr<ICoreWebView2Settings> settings_{ nullptr };
-    };
+};
+
