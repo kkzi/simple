@@ -6,6 +6,7 @@
 #include <WebView2/WebView2.h>
 #include <string_view>
 #include <functional>
+#include <filesystem>
 
 namespace wrl = Microsoft::WRL;
 
@@ -61,7 +62,8 @@ public:
 private:
     void initialize(on_view_ready func)
     {
-        CreateCoreWebView2Environment(wrl::Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+        auto udfpath = std::filesystem::temp_directory_path();
+        CreateCoreWebView2EnvironmentWithOptions(nullptr, udfpath.c_str(), nullptr, wrl::Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
             [this, func](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
                 env->CreateCoreWebView2Controller(this->hwnd_, wrl::Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
                     [this, func](HRESULT result, ICoreWebView2Controller* ctrl) -> HRESULT {
