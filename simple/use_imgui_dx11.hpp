@@ -1,8 +1,8 @@
 #pragma once
 
 #include <imgui.h>
-#include "imgui_impl_dx11.h"
-#include "imgui_impl_win32.h"
+#include "imgui_impl/imgui_impl_dx11.cpp"
+#include "imgui_impl/imgui_impl_win32.cpp"
 
 #include <d3d11.h>
 #include <dxgi1_4.h>
@@ -12,6 +12,7 @@
 #include <tuple>
 #include <unordered_map>
 
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d11.lib")

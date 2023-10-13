@@ -6,11 +6,10 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <functional>
 
 namespace str::detail
 {
-    constexpr const char* const space = "\x20\x09\x0A\x0B\x0C\x0D";
-
     template <typename T>
     T parse_number(std::string_view sv, int base = 10)
     {
@@ -454,43 +453,48 @@ namespace str
         return std::stold(std::string{ sv });
     }
 
-    void trim_left(std::string& input)
+
+    template<class T>
+    void trim_left(std::basic_string<T>& input)
     {
-        input.erase(0, input.find_first_not_of(detail::space));
+        auto t = (const T*)" \t\n\r\f\v";
+        input.erase(0, input.find_first_not_of(t));
     }
 
-    void trim_right(std::string& input)
+    template<class T>
+    void trim_right(std::basic_string<T>& input)
     {
-        std::size_t pos = input.find_last_not_of(detail::space);
-        if (pos == std::string::npos)
-            input.erase(0);
-        else if (++pos != input.size())
-            input.erase(pos);
+        auto t = (const T*)" \t\n\r\f\v";
+        input.erase(input.find_last_not_of(t) + 1);
     }
 
-    void trim(std::string& input)
+    template<class T>
+    void trim(std::basic_string<T>& input)
     {
         trim_left(input);
         trim_right(input);
     }
 
-    std::string trim_left_copy(std::string_view input)
+    template<class T>
+    std::basic_string<T> trim_left_copy(std::basic_string_view<T> input)
     {
-        std::string copy(input);
+        std::basic_string<T> copy(input);
         trim_left(copy);
         return copy;
     }
 
-    std::string trim_right_copy(std::string_view input)
+    template<class T>
+    std::basic_string<T> trim_right_copy(std::basic_string_view<T> input)
     {
-        std::string copy(input);
+        std::basic_string<T> copy(input);
         trim_right(copy);
         return copy;
     }
 
-    std::string trim_copy(std::string_view input)
+    template<class T>
+    std::basic_string<T> trim_copy(std::basic_string_view<T> input)
     {
-        std::string copy(input);
+        std::basic_string<T> copy(input);
         trim(copy);
         return copy;
     }
