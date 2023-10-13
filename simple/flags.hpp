@@ -121,32 +121,22 @@ private:
         {
             ss << app_ << std::endl;
         }
-        for (auto&& [name, desc, _] : items_)
+        for (auto&& [name, it] : key2opt_)
         {
-            ss << "  " << std::setw(12) << std::setiosflags(std::ios::left) << name << desc << std::endl;
+            ss << "  " << std::setw(12) << std::setiosflags(std::ios::left) << name << std::get<1>(it) << std::endl;
         }
         return ss.str();
     }
 
     void register_option_item(const std::string& name, const std::string& desc, const callback_t& func)
     {
-        auto it = item(name);
-        if (!it && func)
-        {
-            items_.emplace_back(name, desc, func);
-        }
+        if (func != nullptr)
+            key2opt_[name] = { name, desc, func };
     }
 
     std::optional<option_item_t> item(const std::string& name)
     {
-        for (auto&& it : items_)
-        {
-            if (std::get<0>(it) == name)
-            {
-                return it;
-            }
-        }
-        return std::nullopt;
+        return key2opt_.contains(name) ? std::make_optional(key2opt_.at(name)) : std::nullopt;
     }
 
 private:
@@ -157,5 +147,5 @@ private:
 
 private:
     std::string app_;
-    std::vector<option_item_t> items_;
+    std::unordered_map<std::string, option_item_t> key2opt_;
 };
