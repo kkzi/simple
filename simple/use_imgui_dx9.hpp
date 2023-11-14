@@ -25,6 +25,12 @@ namespace ImGuiDx::detail
         DefaultLight,
     };
 
+    enum class LoopMode
+    {
+        QuitLoop,
+        ContinueLoop,
+    };
+
     struct ImGuiFont
     {
         std::string Path{};
@@ -305,7 +311,7 @@ namespace ImGuiDx::detail
     }
 
     // Main code
-    static int Run(const RunOptions& opts, std::function<bool(HWND)> func)
+    static int Run(const RunOptions& opts, std::function<LoopMode(HWND)> func)
     {
         RegisterDefaultMsgProcs();
         auto&& [hwnd, wc] = CreateAppWindow(opts);
@@ -328,7 +334,7 @@ namespace ImGuiDx::detail
             ImGui::SetNextWindowSize(viewport->WorkSize);
             if (ImGui::Begin("MainWindow", 0, ImGuiWindowFlags_NoDecoration))
             {
-                done = !func(hwnd);
+                done = (func(hwnd) == LoopMode::QuitLoop);
                 ImGui::End();
             }
 
@@ -346,6 +352,7 @@ namespace ImGuiDx::detail
 namespace ImGuiDx
 {
     using detail::ImGuiTheme;
+    using detail::LoopMode;
     using detail::OnMessage;
     using detail::Run;
     using detail::RunOptions;

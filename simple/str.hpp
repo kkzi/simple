@@ -453,51 +453,45 @@ namespace str
         return std::stold(std::string{ sv });
     }
 
-
-    template<class T>
-    void trim_left(std::basic_string<T>& input)
+    template <typename InputIt>
+    InputIt find_if_not_space(InputIt first, InputIt last)
     {
-        auto t = (const T*)" \t\n\r\f\v";
-        input.erase(0, input.find_first_not_of(t));
+        return std::find_if_not(first, last, [](int c) { return std::isspace(c); });
     }
 
     template<class T>
-    void trim_right(std::basic_string<T>& input)
+    inline std::basic_string<T> trim_left(const std::basic_string<T>& s)
     {
-        auto t = (const T*)" \t\n\r\f\v";
-        input.erase(input.find_last_not_of(t) + 1);
+        return { find_if_not_space(begin(s), end(s)), end(s) };
     }
 
     template<class T>
-    void trim(std::basic_string<T>& input)
+    inline std::basic_string<T> trim_right(const std::basic_string<T>& s)
     {
-        trim_left(input);
-        trim_right(input);
+        return { begin(s), find_if_not_space(rbegin(s), rend(s)).base() };
     }
 
     template<class T>
-    std::basic_string<T> trim_left_copy(std::basic_string_view<T> input)
+    inline void trim(std::basic_string<T>& s)
     {
-        std::basic_string<T> copy(input);
-        trim_left(copy);
-        return copy;
+        auto begin = find_if_not_space(std::begin(s), std::end(s));
+        s = { begin, find_if_not_space(std::rbegin(s), decltype(std::rbegin(s))(begin)).base() };
     }
 
     template<class T>
-    std::basic_string<T> trim_right_copy(std::basic_string_view<T> input)
+    inline std::basic_string<T> trim_copy(std::basic_string_view<T> input)
     {
-        std::basic_string<T> copy(input);
-        trim_right(copy);
-        return copy;
+        std::basic_string<T> copied(input);
+        trim(copied);
+        return copied;
     }
 
     template<class T>
-    std::basic_string<T> trim_copy(std::basic_string_view<T> input)
+    inline std::basic_string<T> trim_copy(const std::basic_string<T>& input)
     {
-        std::basic_string<T> copy(input);
-        trim(copy);
-        return copy;
+        return trim_copy(std::basic_string_view<T>(input));
     }
+
 
     inline std::string narrow(std::wstring_view wsv) {
         auto ns = std::string(wsv.size(), char{});
